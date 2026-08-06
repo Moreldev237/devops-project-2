@@ -1,47 +1,61 @@
 pipeline {
+    // Utilise n'importe quel agent Jenkins disponible pour exécuter le pipeline.
     agent any
 
     options {
+        // Ajoute l'heure dans les logs pour faciliter le suivi des exécutions.
         timestamps()
+        // Empêche plusieurs builds du même job de se lancer en parallèle.
         disableConcurrentBuilds()
     }
 
-    // Déclenché automatiquement par le webhook GitHub que je vais configuré sur le repo
+    // Déclenche automatiquement le pipeline lorsqu'un push est envoyé sur GitHub.
     triggers {
         githubPush()
     }
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')   // credentials Jenkins (username/password)
-        DOCKERHUB_USER        = 'devops_project_2'
-        IMAGE_TAG             = "${env.BUILD_NUMBER}"
-        BACKEND_IMAGE         = "${DOCKERHUB_USER}/formapp-backend"
-        NGINX_IMAGE           = "${DOCKERHUB_USER}/formapp-nginx"
+        // Récupère les identifiants Docker Hub depuis Jenkins (Credentials).
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        // Nom d'utilisateur Docker Hub utilisé pour taguer les images.
+        DOCKERHUB_USER = 'devops_project_2'
+        // Numéro du build Jenkins, utilisé comme tag d'image.
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        // Nom de l'image Docker du backend.
+        BACKEND_IMAGE = "${DOCKERHUB_USER}/formapp-backend"
+        // Nom de l'image Docker du frontend/nginx.
+        NGINX_IMAGE = "${DOCKERHUB_USER}/formapp-nginx"
 
-        EC2_HOST = "${env.EC2_HOST}"  // Adresse IP publique de l'instance EC2
-        EC2_SSH_CRED = "${env.EC2_SSH_CRED}"  // ID de la credential Jenkins SSH (clé privée)
+        // Adresse IP publique ou domaine de l'instance EC2.
+        EC2_HOST = "${env.EC2_HOST}"
+        // ID de la credential Jenkins contenant la clé SSH privée pour EC2.
+        EC2_SSH_CRED = "${env.EC2_SSH_CRED}"
     }
 
     stages {
 
+        // 1. Récupère le code source depuis le dépôt GitHub.
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
+        // 2. Construit l'image Docker du backend Django.
         stage('Build Backend Image') {
             steps {
                 sh "docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} -t ${BACKEND_IMAGE}:latest ./backend"
             }
         }
 
+        // 3. Construit l'image Docker du frontend React + Nginx.
         stage('Build Frontend + Nginx Image') {
             steps {
                 sh "docker build -t ${NGINX_IMAGE}:${IMAGE_TAG} -t ${NGINX_IMAGE}:latest -f nginx/Dockerfile ."
             }
         }
 
+        // 4. Se connecte à Docker Hub et pousse les images construites.
         stage('Push to Docker Hub') {
             steps {
                 sh "echo ${env.DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${env.DOCKERHUB_CREDENTIALS_USR} --password-stdin"
@@ -52,6 +66,7 @@ pipeline {
             }
         }
 
+        // 5. Déploie les images sur la machine EC2 via SSH.
         stage('Deploy to EC2') {
             steps {
                 sshagent(credentials: ["${env.EC2_SSH_CRED}"]) {
@@ -69,24 +84,5 @@ pipeline {
             }
         }
     }
-
-    post {
-        always {
-            script {
-                try {
-                    node {
-                        sh 'docker logout || true'
-                    }
-                } catch (err) {
-                    echo "Cleanup skipped: ${err.getMessage()}"
-                }
-            }
-        }
-        success {
-            echo 'Déploiement réussi sur EC2.'
-        }
-        failure {
-            echo 'Le pipeline a échoué.'
-        }
-    }
 }
+
