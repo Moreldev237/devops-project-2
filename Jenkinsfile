@@ -72,15 +72,21 @@ pipeline {
 
     post {
         always {
-            node {
-                sh "docker logout || true"
+            script {
+                try {
+                    node {
+                        sh 'docker logout || true'
+                    }
+                } catch (err) {
+                    echo "Cleanup skipped: ${err.getMessage()}"
+                }
             }
         }
         success {
-            echo "Déploiement réussi sur EC2."
+            echo 'Déploiement réussi sur EC2.'
         }
         failure {
-            echo "Le pipeline a échoué."
+            echo 'Le pipeline a échoué.'
         }
     }
 }
