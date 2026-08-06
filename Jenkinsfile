@@ -13,13 +13,13 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')   // credentials Jenkins (username/password)
-        DOCKERHUB_USER        = 'devops_project_2'                              
+        DOCKERHUB_USER        = 'devops_project_2'
         IMAGE_TAG             = "${env.BUILD_NUMBER}"
         BACKEND_IMAGE         = "${DOCKERHUB_USER}/formapp-backend"
         NGINX_IMAGE           = "${DOCKERHUB_USER}/formapp-nginx"
 
-        EC2_HOST = "env.EC2_HOST"  // Adresse IP publique de l'instance EC2               
-        EC2_SSH_CRED = "env.EC2_SSH_CRED"                                   // credentials Jenkins (clé privée SSH)
+        EC2_HOST = "${env.EC2_HOST}"  // Adresse IP publique de l'instance EC2
+        EC2_SSH_CRED = "${env.EC2_SSH_CRED}"  // ID de la credential Jenkins SSH (clé privée)
     }
 
     stages {
@@ -72,7 +72,9 @@ pipeline {
 
     post {
         always {
-            sh "docker logout || true"
+            node {
+                sh "docker logout || true"
+            }
         }
         success {
             echo "Déploiement réussi sur EC2."
