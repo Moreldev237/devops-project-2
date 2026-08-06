@@ -1,6 +1,4 @@
 pipeline {
-    // Le pipeline ne construit plus d'images localement.
-    // Il récupère simplement les images déjà publiées sur Docker Hub et les déploie sur EC2.
     agent any
 
     options {
@@ -22,44 +20,54 @@ pipeline {
     }
 
     stages {
-        // 1. Récupère le code source depuis GitHub.
+
         stage('Checkout') {
             steps {
-                node {
-                    checkout scm
-                }
+                checkout scm
             }
         }
 
-        // 2. Déploie les images déjà présentes sur Docker Hub sur la VM EC2.
         stage('Deploy to EC2') {
             steps {
-                node {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-credentials',
-                        usernameVariable: 'DOCKERHUB_USERNAME',
-                        passwordVariable: 'DOCKERHUB_PASSWORD'
-                    )]) {
-                        sshagent(credentials: ["${env.EC2_SSH_CRED}"]) {
-                            sh """
-                                ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
-                                    set -e
-                                    export DOCKERHUB_USER=${DOCKERHUB_USER}
-                                    export IMAGE_TAG=${IMAGE_TAG}
-                                    export BACKEND_IMAGE=${BACKEND_IMAGE}
-                                    export NGINX_IMAGE=${NGINX_IMAGE}
-                                    docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
-                                    cd /home/ec2-user/app
-                                    docker compose pull
-                                    docker compose up -d --remove-orphans
-                                    docker image prune -f
-                                '
-                            """
-                        }
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_PASSWORD'
+                )]) {
+                    sshagent(credentials: ["${EC2_SSH_CRED}"]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
+                                set -e
+                                export DOCKERHUB_USER=${DOCKERHUB_USER}
+                                export IMAGE_TAG=${IMAGE_TAG}
+                                export BACKEND_IMAGE=${BACKEND_IMAGE}
+                                export NGINX_IMAGE=${NGINX_IMAGE}
+
+                                echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+                                cd /home/ec2-user/app
+                                docker compose pull
+                                docker compose up -d --remove-orphans
+                                docker image prune -f
+                            '
+                        """
                     }
                 }
             }
         }
     }
-}
 
+    post {
+        always {
+            echo 'Pipeline terminé avec succès (ou échec géré)'
+        }
+
+        failure {
+            echo 'Le pipeline a échoué ❌'
+        }
+
+        success {
+            echo 'Déploiement réussi 🚀'
+        }
+    }
+}
