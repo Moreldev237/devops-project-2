@@ -15,8 +15,6 @@ pipeline {
         IMAGE_TAG = 'latest'
         BACKEND_IMAGE = "${DOCKERHUB_USER}/formapp-backend"
         NGINX_IMAGE = "${DOCKERHUB_USER}/formapp-nginx"
-        EC2_HOST = "${env.EC2_HOST}"
-        EC2_SSH_CRED = "${env.EC2_SSH_CRED}"
     }
 
     stages {
@@ -39,23 +37,23 @@ pipeline {
                     )
                 ]) {
 
-                    sshagent(credentials: ["${EC2_SSH_CRED}"]) {
+                    sshagent(credentials: ['formation_devops_keys.pem']) {
 
                         sh '''
-                            ssh -o StrictHostKeyChecking=no ${EC2_HOST} "
-                                set -e
+                        ssh -o StrictHostKeyChecking=no ubuntu@EC2_IP_ADDRESS "
+                            set -e
 
-                                echo ${DOCKERHUB_PASSWORD} | docker login \
-                                -u ${DOCKERHUB_USERNAME} \
-                                --password-stdin
+                            echo $DOCKERHUB_PASSWORD | docker login \
+                            -u $DOCKERHUB_USERNAME \
+                            --password-stdin
 
-                                cd /home/ec2-user/app
+                            cd /home/ec2-user/app
 
-                                docker compose pull
-                                docker compose up -d --remove-orphans
+                            docker compose pull
+                            docker compose up -d --remove-orphans
 
-                                docker image prune -f
-                            "
+                            docker image prune -f
+                        "
                         '''
                     }
                 }
@@ -67,21 +65,15 @@ pipeline {
     post {
 
         always {
-            node {
-                echo "Fin du pipeline"
-            }
+            echo "Fin du pipeline"
         }
 
         success {
-            node {
-                echo "Déploiement réussi"
-            }
+            echo "Déploiement réussi"
         }
 
         failure {
-            node {
-                echo "Déploiement échoué"
-            }
+            echo "Déploiement échoué"
         }
     }
 }
