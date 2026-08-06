@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${DOCKERHUB_USER:-devops_project_2}/formapp-backend:${IMAGE_TAG:-latest}
+    container_name: formapp-backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-change-me-in-prod}
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "*"
+      CORS_ALLOW_ALL_ORIGINS: "True"
+    volumes:
+      - backend_data:/app/data
+    expose:
+      - "8000"
+    networks:
+      - appnet
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: ${DOCKERHUB_USER:-devops_project_2}/formapp-nginx:${IMAGE_TAG:-latest}
+    container_name: formapp-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
+
+volumes:
+  backend_data:
