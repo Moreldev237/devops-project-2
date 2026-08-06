@@ -1,4 +1,4 @@
-# Formulaire React + Django — CI/CD Jenkins & Docker sur AWS EC2
+#project 2 devops  React + Django — CI/CD Jenkins & Docker sur AWS EC2
 
 Projet correspondant au schéma : Developer's Machine → Jenkins CI Server → Docker Hub → App EC2 Server.
 
