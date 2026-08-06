@@ -37,49 +37,59 @@ pipeline {
         // 1. Récupère le code source depuis le dépôt GitHub.
         stage('Checkout') {
             steps {
-                checkout scm
+                script {
+                    checkout scm
+                }
             }
         }
 
         // 2. Construit l'image Docker du backend Django.
         stage('Build Backend Image') {
             steps {
-                sh "docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} -t ${BACKEND_IMAGE}:latest ./backend"
+                script {
+                    sh "docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} -t ${BACKEND_IMAGE}:latest ./backend"
+                }
             }
         }
 
         // 3. Construit l'image Docker du frontend React + Nginx.
         stage('Build Frontend + Nginx Image') {
             steps {
-                sh "docker build -t ${NGINX_IMAGE}:${IMAGE_TAG} -t ${NGINX_IMAGE}:latest -f nginx/Dockerfile ."
+                script {
+                    sh "docker build -t ${NGINX_IMAGE}:${IMAGE_TAG} -t ${NGINX_IMAGE}:latest -f nginx/Dockerfile ."
+                }
             }
         }
 
         // 4. Se connecte à Docker Hub et pousse les images construites.
         stage('Push to Docker Hub') {
             steps {
-                sh "echo ${env.DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${env.DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-                sh "docker push ${BACKEND_IMAGE}:${IMAGE_TAG}"
-                sh "docker push ${BACKEND_IMAGE}:latest"
-                sh "docker push ${NGINX_IMAGE}:${IMAGE_TAG}"
-                sh "docker push ${NGINX_IMAGE}:latest"
+                script {
+                    sh "echo ${env.DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${env.DOCKERHUB_CREDENTIALS_USR} --password-stdin"
+                    sh "docker push ${BACKEND_IMAGE}:${IMAGE_TAG}"
+                    sh "docker push ${BACKEND_IMAGE}:latest"
+                    sh "docker push ${NGINX_IMAGE}:${IMAGE_TAG}"
+                    sh "docker push ${NGINX_IMAGE}:latest"
+                }
             }
         }
 
         // 5. Déploie les images sur la machine EC2 via SSH.
         stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ["${env.EC2_SSH_CRED}"]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${env.EC2_HOST} '
-                            cd /home/ec2-user/app &&
-                            export DOCKERHUB_USER=${env.DOCKERHUB_USER} &&
-                            export IMAGE_TAG=latest &&
-                            docker compose pull &&
-                            docker compose up -d --remove-orphans &&
-                            docker image prune -f
-                        '
-                    """
+                script {
+                    sshagent(credentials: ["${env.EC2_SSH_CRED}"]) {
+                        sh """
+                            ssh -o StrictHostKeyChecking=no ${env.EC2_HOST} '
+                                cd /home/ec2-user/app &&
+                                export DOCKERHUB_USER=${env.DOCKERHUB_USER} &&
+                                export IMAGE_TAG=latest &&
+                                docker compose pull &&
+                                docker compose up -d --remove-orphans &&
+                                docker image prune -f
+                            '
+                        """
+                    }
                 }
             }
         }
