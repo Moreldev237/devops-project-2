@@ -27,47 +27,61 @@ pipeline {
             }
         }
 
+
         stage('Deploy to EC2') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKERHUB_USERNAME',
-                    passwordVariable: 'DOCKERHUB_PASSWORD'
-                )]) {
-                    sshagent(credentials: ["${EC2_SSH_CRED}"]) {
-                        sh """
-                            ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
-                                set -e
-                                export DOCKERHUB_USER=${DOCKERHUB_USER}
-                                export IMAGE_TAG=${IMAGE_TAG}
-                                export BACKEND_IMAGE=${BACKEND_IMAGE}
-                                export NGINX_IMAGE=${NGINX_IMAGE}
 
-                                echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKERHUB_USERNAME',
+                        passwordVariable: 'DOCKERHUB_PASSWORD'
+                    )
+                ]) {
+
+                    sshagent(credentials: ["${EC2_SSH_CRED}"]) {
+
+                        sh '''
+                            ssh -o StrictHostKeyChecking=no ${EC2_HOST} "
+                                set -e
+
+                                echo ${DOCKERHUB_PASSWORD} | docker login \
+                                -u ${DOCKERHUB_USERNAME} \
+                                --password-stdin
 
                                 cd /home/ec2-user/app
+
                                 docker compose pull
                                 docker compose up -d --remove-orphans
+
                                 docker image prune -f
-                            '
-                        """
+                            "
+                        '''
                     }
                 }
             }
         }
     }
 
-    post {
-        always {
-            echo 'Pipeline terminé avec succès (ou échec géré)'
-        }
 
-        failure {
-            echo 'Le pipeline a échoué ❌'
+    post {
+
+        always {
+            node {
+                echo "Fin du pipeline"
+            }
         }
 
         success {
-            echo 'Déploiement réussi 🚀'
+            node {
+                echo "Déploiement réussi"
+            }
+        }
+
+        failure {
+            node {
+                echo "Déploiement échoué"
+            }
         }
     }
 }
