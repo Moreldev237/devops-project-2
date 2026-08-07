@@ -62,7 +62,7 @@ pipeline {
                     )
                 ]) node{
 
-                    sshagent(credentials: ['formation_devops_key']) {
+                    sshagent(credentials: ['formation_devops_keys']) {
 
                         sh '''
                         ssh -o StrictHostKeyChecking=no $EC2_HOST <<'SSH'
