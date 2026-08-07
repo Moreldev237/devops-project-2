@@ -133,7 +133,9 @@ pipeline {
 
                 echo "Building nginx image..."
 
-               docker build -f nginx/Dockerfile -t test-nginx .
+                docker build \
+                -t "$NGINX_IMAGE:$IMAGE_TAG" \
+                ./nginx
 
 
                 '''
