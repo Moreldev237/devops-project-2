@@ -2,10 +2,12 @@ pipeline {
 
     agent any
 
+
     options {
         timestamps()
         disableConcurrentBuilds()
     }
+
 
     triggers {
         githubPush()
@@ -28,12 +30,26 @@ pipeline {
     }
 
 
+
     stages {
 
 
-        stage('Build and Push Images') {
+        stage('Checkout SCM') {
 
             steps {
+
+                checkout scm
+
+            }
+
+        }
+
+
+
+        stage('Docker Login') {
+
+            steps {
+
 
                 withCredentials([
 
@@ -52,27 +68,6 @@ pipeline {
                     -u "$DOCKERHUB_USERNAME" \
                     --password-stdin
 
-
-                    echo "Building backend image..."
-
-                    docker build \
-                    -t "$BACKEND_IMAGE:$IMAGE_TAG" \
-                    ./backend
-
-
-                    docker push "$BACKEND_IMAGE:$IMAGE_TAG"
-
-
-
-                    echo "Building nginx image..."
-
-                    docker build \
-                    -t "$NGINX_IMAGE:$IMAGE_TAG" .
-
-
-                    docker push "$NGINX_IMAGE:$IMAGE_TAG"
-
-
                     '''
 
                 }
@@ -80,6 +75,99 @@ pipeline {
             }
 
         }
+
+
+
+
+
+        stage('Build Backend Image') {
+
+            steps {
+
+                sh '''
+
+                echo "Building backend image..."
+
+                docker build \
+                -t "$BACKEND_IMAGE:$IMAGE_TAG" \
+                ./backend
+
+
+                '''
+
+            }
+
+        }
+
+
+
+
+
+        stage('Push Backend Image') {
+
+            steps {
+
+                sh '''
+
+                echo "Pushing backend image..."
+
+                docker push \
+                "$BACKEND_IMAGE:$IMAGE_TAG"
+
+
+                '''
+
+            }
+
+        }
+
+
+
+
+
+        stage('Build Nginx Image') {
+
+            steps {
+
+                sh '''
+
+                echo "Building nginx image..."
+
+                docker build \
+                -t "$NGINX_IMAGE:$IMAGE_TAG" \
+                ./nginx
+
+
+                '''
+
+            }
+
+        }
+
+
+
+
+
+        stage('Push Nginx Image') {
+
+            steps {
+
+                sh '''
+
+                echo "Pushing nginx image..."
+
+                docker push \
+                "$NGINX_IMAGE:$IMAGE_TAG"
+
+
+                '''
+
+            }
+
+        }
+
+
+
 
 
 
@@ -102,7 +190,6 @@ pipeline {
 
 
                     sshagent(credentials: ['formation_devops_keys']) {
-
 
 
                         sh '''
@@ -128,13 +215,19 @@ pipeline {
 
 
 
+                        echo "Pulling new images..."
+
                         docker compose pull
 
 
 
+                        echo "Restarting containers..."
+
                         docker compose up -d --remove-orphans
 
 
+
+                        echo "Cleaning unused images..."
 
                         docker image prune -f
 
@@ -152,7 +245,41 @@ EOF
 
         }
 
+
+
+
+
+        stage('Verify Deployment') {
+
+
+            steps {
+
+
+                sshagent(credentials: ['formation_devops_keys']) {
+
+
+                    sh '''
+
+                    ssh -o StrictHostKeyChecking=no $EC2_HOST <<EOF
+
+
+                    docker ps
+
+
+EOF
+
+                    '''
+
+                }
+
+            }
+
+        }
+
+
     }
+
+
 
 
 
@@ -166,18 +293,21 @@ EOF
         }
 
 
+
         success {
 
-            echo "Déploiement réussi yes"
+            echo "Déploiement réussi 🚀"
 
         }
+
 
 
         failure {
 
-            echo "Déploiement échoué"
+            echo "Déploiement échoué ❌"
 
         }
+
 
     }
 
