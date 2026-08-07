@@ -126,24 +126,16 @@ pipeline {
 
 
         stage('Build Nginx Image') {
-
-            steps {
-
-                sh '''
-
-                echo "Building nginx image..."
-
-                docker build \
-                -t "$NGINX_IMAGE:$IMAGE_TAG" \
-                ./nginx
-
-
-                '''
-
-            }
-
-        }
-
+    steps {
+        sh '''
+        echo "Building nginx image..."
+        docker build \
+        -t "$NGINX_IMAGE:$IMAGE_TAG" \
+        -f ./nginx/Dockerfile \
+        .
+        '''
+    }
+}
 
 
 
