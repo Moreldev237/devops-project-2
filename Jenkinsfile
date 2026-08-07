@@ -135,7 +135,7 @@ pipeline {
 
                 docker build \
                 -t "$NGINX_IMAGE:$IMAGE_TAG" \
-                ./nginx
+                .
 
 
                 '''
