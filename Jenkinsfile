@@ -35,7 +35,9 @@ pipeline {
                         usernameVariable: 'DOCKERHUB_USERNAME',
                         passwordVariable: 'DOCKERHUB_PASSWORD'
                     )
-                ]) {
+                ]) 
+                node{
+                    
                     sh '''
                     echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
 
@@ -58,7 +60,7 @@ pipeline {
                         usernameVariable: 'DOCKERHUB_USERNAME',
                         passwordVariable: 'DOCKERHUB_PASSWORD'
                     )
-                ]) {
+                ]) node{
 
                     sshagent(credentials: ['formation_devops_keys']) {
 
